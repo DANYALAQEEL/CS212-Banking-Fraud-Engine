@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1"
+      styleClass="main-container" spacing="15">
+    <padding>
+        <Insets top="20" right="20" bottom="20" left="20"/>
+    </padding>
+
+    <!-- Top Header Bar & Telemetry Cards -->
+    <HBox spacing="15" alignment="CENTER_LEFT" styleClass="header-bar">
+        <VBox spacing="5" HBox.hgrow="ALWAYS">
+            <Label text="AUTOMATED BANKING &amp; FRAUD DETECTION ENGINE" styleClass="header-title"/>
+            <Label text="Real-Time Concurrency Telemetry &amp; Multi-Threaded Settlement Pipeline" styleClass="header-subtitle"/>
+        </VBox>
+
+        <!-- Metric Cards -->
+        <HBox spacing="10">
+            <VBox styleClass="metric-card">
+                <Label text="ENGINE STATUS" styleClass="metric-label"/>
+                <Label fx:id="lblEngineStatus" text="RUNNING" styleClass="metric-value-green"/>
+            </VBox>
+            <VBox styleClass="metric-card">
+                <Label text="TOTAL LIQUIDITY" styleClass="metric-label"/>
+                <Label fx:id="lblTotalLiquidity" text="RS 1,250,000.00" styleClass="metric-value-blue"/>
+            </VBox>
+            <VBox styleClass="metric-card">
+                <Label text="QUEUE DEPTH" styleClass="metric-label"/>
+                <Label fx:id="lblQueueDepth" text="0 / 100" styleClass="metric-value"/>
+            </VBox>
+            <VBox styleClass="metric-card">
+                <Label text="WORKER THREADS" styleClass="metric-label"/>
+                <Label fx:id="lblActiveThreads" text="4 ACTIVE" styleClass="metric-value"/>
+            </VBox>
+        </HBox>
+    </HBox>
+
+    <!-- Main Content Area: Split View -->
+    <SplitPane VBox.vgrow="ALWAYS" dividerPositions="0.45" styleClass="content-split-pane">
+
+        <!-- Left Pane: Account Ledger -->
+        <VBox spacing="10" styleClass="pane-box">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <Label text="ACCOUNT LEDGER" styleClass="section-title"/>
+                <Spacer HBox.hgrow="ALWAYS"/>
+                <Button fx:id="btnRefreshLedger" text="Refresh Ledger" styleClass="btn-secondary"/>
+            </HBox>
+
+            <TableView fx:id="tblAccounts" VBox.vgrow="ALWAYS" styleClass="custom-table">
+                <columns>
+                    <TableColumn fx:id="colAccId" text="Account ID" prefWidth="100"/>
+                    <TableColumn fx:id="colAccOwner" text="Owner Name" prefWidth="130"/>
+                    <TableColumn fx:id="colAccType" text="Type" prefWidth="110"/>
+                    <TableColumn fx:id="colAccBalance" text="Balance (PKR)" prefWidth="120"/>
+                    <TableColumn fx:id="colAccLockStatus" text="Lock State" prefWidth="100"/>
+                </columns>
+            </TableView>
+        </VBox>
+
+        <!-- Right Pane: Controls & Transaction Stream -->
+        <VBox spacing="15" styleClass="pane-box">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+
+            <!-- Transfer Control Panel -->
+            <TitledPane text="TRANSACTION EXECUTION &amp; STRATEGY PANEL" collapsible="false" styleClass="control-titled-pane">
+                <GridPane hgap="10" vgap="10">
+                    <padding>
+                        <Insets top="10" right="10" bottom="10" left="10"/>
+                    </padding>
+
+                    <Label text="Source Account:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                    <TextField fx:id="txtSourceId" promptText="e.g. ACC-001" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+                    <Label text="Destination Account:" GridPane.rowIndex="0" GridPane.columnIndex="2"/>
+                    <TextField fx:id="txtDestId" promptText="e.g. ACC-002" GridPane.rowIndex="0" GridPane.columnIndex="3"/>
+
+                    <Label text="Transfer Amount (RS):" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+                    <TextField fx:id="txtAmount" promptText="e.g. 5000.00" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+                    <Label text="Lock Strategy:" GridPane.rowIndex="1" GridPane.columnIndex="2"/>
+                    <ComboBox fx:id="cmbLockStrategy" prefWidth="200" GridPane.rowIndex="1" GridPane.columnIndex="3"/>
+
+                    <!-- Action Buttons Bar -->
+                    <HBox spacing="10" GridPane.rowIndex="2" GridPane.columnIndex="0" GridPane.columnSpan="4" alignment="CENTER_RIGHT">
+                        <Button fx:id="btnExecuteTransfer" text="Execute Transfer" styleClass="btn-primary"/>
+                        <Button fx:id="btnInjectVelocity" text="Inject Traffic" styleClass="btn-warning"/>
+                        <Button fx:id="btnTriggerDeadlock" text="Simulate Deadlock" styleClass="btn-danger"/>
+                        <Button fx:id="btnResetSystem" text="Reset System" styleClass="btn-secondary"/>
+                    </HBox>
+                </GridPane>
+            </TitledPane>
+
+            <!-- Live Transaction Stream Table -->
+            <VBox spacing="5" VBox.vgrow="ALWAYS">
+                <Label text="LIVE TRANSACTION STREAM &amp; SETTLEMENT PIPELINE" styleClass="section-title"/>
+                <TableView fx:id="tblTransactions" VBox.vgrow="ALWAYS" styleClass="custom-table">
+                    <columns>
+                        <TableColumn fx:id="colTxId" text="Tx ID" prefWidth="90"/>
+                        <TableColumn fx:id="colTxFrom" text="From" prefWidth="100"/>
+                        <TableColumn fx:id="colTxTo" text="To" prefWidth="100"/>
+                        <TableColumn fx:id="colTxAmount" text="Amount (PKR)" prefWidth="110"/>
+                        <TableColumn fx:id="colTxStatus" text="Settlement Status" prefWidth="150"/>
+                        <TableColumn fx:id="colTxDetails" text="Engine Message &amp; Fraud Analysis" prefWidth="220"/>
+                    </columns>
+                </TableView>
+            </VBox>
+        </VBox>
+
+    </SplitPane>
+</VBox>
