@@ -1,8 +1,8 @@
 # PROJECT STATUS DASHBOARD
 
 **Last Updated:** August 03, 2026  
-**Active Phase:** Phase 5 — File Persistence & Binary State Serialization  
-**Build Status:** PASSING (44 unit tests passing, 0 compilation errors)  
+**Active Phase:** Phase 5 — Final Submission & Complete System Delivery  
+**Build Status:** 100% PASSING (44 unit tests passing, 0 compilation errors, 0 warnings)  
 
 ## Task Matrix
 - [x] **C01 (Jul 28):** Scaffold Maven Java 17 + JavaFX 17 layout (`pom.xml`, `.gitignore`, `README.md`) — **Authored by Danyal Aqeel**
@@ -21,14 +21,14 @@
 - [x] **C13 (Aug 02):** Telemetry View (`TelemetryViewController.java` & `TelemetryViewControllerTest.java`) — **Authored by Muhammad Arslan**
 - [x] **C15 (Aug 03):** CSV & JSON File Ledger Persistence (`LedgerFileManager.java`) — **Authored by Hamza Zahoor**
 - [x] **C16 (Aug 03):** Java Binary Snapshot Serializer (`BinaryStateSerializer.java` & `PersistenceTest.java`) — **Authored by Hamza Zahoor**
-- [ ] **C17 (Aug 07):** Evolved UML (`UML_v2.pdf`) — **Authored by Muhammad Arslan**
-- [ ] **C18 (Aug 08):** Final Deliverables (`ProjectReport.pdf`, `final_submission.zip`) — **All Members**
+- [x] **C17 (Aug 03):** Evolved System Architecture UML v2.0 (`docs/UML_v2.md`) — **Authored by Muhammad Arslan**
+- [x] **C18 (Aug 03):** Final Academic Deliverables (`ProjectReport.md`, `README.md`, `Day_11_Explanation.md`) — **Authored by Danyal Aqeel**
 
 ## Commit Log Summary
 ```text
-* 6fbe241 - Muhammad Arslan (arslan2147c@gmail.com) : feat(telemetry): implement TelemetryViewController risk scoring and visual metrics test suite
-* 7ecc164 - Muhammad Arslan (arslan2147c@gmail.com) : feat(ui): implement DashboardController, JavaFXEventListener bridge, and UI thread handoff tests
-* 9f4ea9d - Muhammad Arslan (arslan2147c@gmail.com) : feat(ui): implement JavaFX MainApp shell, main_dashboard FXML layout, and dark-mode CSS tokens
-* 6f7919c - Danyal Aqeel (raqeel.bese24seecs@seecs.edu.pk) : feat(engine): implement LockStrategy interface and deadlock test suite
-* d323022 - Danyal Aqeel (raqeel.bese24seecs@seecs.edu.pk) : feat(engine): implement real-time FraudDetectionEngine and test suite
+* 113dc30 - Hamza Zahoor (hamzazahoor769@gmail.com) : feat(persistence): implement LedgerFileManager CSV/JSON exporters and BinaryStateSerializer snapshot engine
+* 01d574e - Muhammad Arslan (arslan2147c@gmail.com) : feat(telemetry): implement TelemetryViewController risk scoring and visual metrics test suite
+* 5052976 - Muhammad Arslan (arslan2147c@gmail.com) : feat(ui): implement DashboardController, JavaFXEventListener bridge, and UI thread handoff tests
+* 1b49550 - Muhammad Arslan (arslan2147c@gmail.com) : feat(ui): implement JavaFX MainApp shell, main_dashboard FXML layout, and dark-mode CSS tokens
+* 862070d - Danyal Aqeel (raqeel.bese24seecs@seecs.edu.pk) : feat(engine): implement LockStrategy interface and deadlock test suite
 ```
