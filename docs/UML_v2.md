@@ -2,7 +2,7 @@
 
 **Project:** Automated High-Throughput Banking & Real-Time Fraud Detection Engine  
 **Author:** Muhammad Arslan (`arslan2147c@gmail.com`)  
-**Version:** 2.0 (Final Release)  
+**Version:** 2.0 (Final Post-Remediation Release)  
 
 ---
 
@@ -11,6 +11,15 @@
 ```mermaid
 classDiagram
     %% Core Domain Models
+    class Comparable~T~ {
+        <<interface>>
+        +compareTo(other)* int
+    }
+
+    class Serializable {
+        <<interface>>
+    }
+
     class Account {
         <<abstract>>
         -String id
@@ -20,16 +29,21 @@ classDiagram
         +getId() String
         +getOwnerName() String
         +getBalance() double
+        +getNetPosition() double
         +getLock() ReentrantLock
         +credit(amount) void
         +debit(amount)* void
+        +feeFor(amount) double
+        +setBalanceDirectly(newBalance) void
         +compareTo(other) int
+        -readObject(in) void
     }
 
     class SavingsAccount {
         -double interestRate
         -double minimumBalance
         +debit(amount) void
+        +applyInterest() void
         +applyMonthlyInterest() void
     }
 
@@ -37,12 +51,15 @@ classDiagram
         -double overdraftLimit
         -double transactionFee
         +debit(amount) void
+        +feeFor(amount) double
     }
 
     class CreditAccount {
         -double creditLimit
         -double apr
         +debit(amount) void
+        +credit(amount) void
+        +getNetPosition() double
         +getAvailableCredit() double
     }
 
@@ -59,6 +76,16 @@ classDiagram
         +withStatus(status, details) Transaction
     }
 
+    class TransactionStatus {
+        <<enumeration>>
+        COMPLETED
+        FAILED_INSUFFICIENT_FUNDS
+        FAILED_INVALID_ACCOUNT
+        FLAGGED_SUSPICIOUS
+        FLAGGED_FRAUD
+        CANCELLED
+    }
+
     class FraudResult {
         <<record>>
         +String transactionId
@@ -68,73 +95,138 @@ classDiagram
         +Instant timestamp
         +cleared(txId)$ FraudResult
         +flagged(txId, rule, score)$ FraudResult
-        +quarantined(txId, rule, score)$ FraudResult
     }
 
+    class FraudStatus {
+        <<enumeration>>
+        CLEARED
+        FLAGGED_SUSPICIOUS
+        QUARANTINED
+    }
+
+    Comparable <|.. Account
+    Serializable <|.. Account
     Account <|-- SavingsAccount
     Account <|-- CheckingAccount
     Account <|-- CreditAccount
+    Transaction ..> TransactionStatus
+    FraudResult ..> FraudStatus
 
     %% Concurrency & Execution Engine Layer
     class AccountLockManager {
-        -Map~String, ReentrantLock~ lockRegistry
-        +acquireLocks(acc1, acc2) LockPair
-        +releaseLocks(lockPair) void
+        <<utility>>
+        +executeWithLocks(action, accounts...)$ void
+        +executeWithLocks(acc1, acc2, action)$ void
     }
 
     class TransferEngine {
-        -AccountLockManager lockManager
         +processTransfer(fromAcc, toAcc, amount) Transaction
+        +processTransfer(fromAcc, toAcc, amount, strategy) Transaction
+        +processTransfer(fromAcc, toAcc, feeAcc, amount) Transaction
+        +processTransfer(fromAcc, toAcc, feeAcc, amount, strategy) Transaction
+    }
+
+    class SettlementService {
+        -TransferEngine transferEngine
+        -FraudDetectionEngine fraudEngine
+        +settle(from, to, amount, strategy) SettlementOutcome
+        +settle(from, to, feeAcc, amount, strategy) SettlementOutcome
+    }
+
+    class SettlementOutcome {
+        <<record>>
+        +Transaction transaction
+        +FraudResult fraudResult
     }
 
     class TransactionPipelineQueue {
-        -PriorityBlockingQueue~PrioritizedTransaction~ queue
         -int capacity
-        +put(transaction, priority) void
+        -PriorityQueue~Transaction~ queue
+        -ReentrantLock lock
+        -Condition notFull
+        -Condition notEmpty
+        -AtomicLong totalEnqueued
+        -AtomicLong totalDequeued
+        -boolean shutdown
+        +put(tx) void
+        +offer(tx, timeout, unit) boolean
         +take() Transaction
+        +poll(timeout, unit) Transaction
+        +shutdown() void
         +size() int
     }
 
+    class PipelineCoordinator {
+        -TransactionPipelineQueue pipelineQueue
+        -SettlementService settlementService
+        -ExecutorService consumerPool
+        -List~JavaFXEventListener~ listeners
+        +submitTransaction(tx, timeout, unit) boolean
+        +shutdown() void
+    }
+
     class FraudDetectionEngine {
-        -Map~String, List~Transaction~~ accountHistory
-        -double largeAmountThreshold
-        -int velocityLimit
+        +double LARGE_AMOUNT_THRESHOLD$
+        +int VELOCITY_COUNT_THRESHOLD$
+        +Duration VELOCITY_WINDOW$
+        +int SUSPICIOUS_SOURCES_THRESHOLD$
+        +double RAPID_DRAIN_RATIO_THRESHOLD$
+        -Map~String, Deque~Instant~~ sourceVelocityMap
+        -Map~String, Deque~Transaction~~ targetPatternMap
         +evaluateTransaction(tx, account) FraudResult
+        +evaluateTransaction(tx, account, preBalance) FraudResult
+        +pruneExpiredWindows(now) void
         +resetWindowHistory() void
     }
 
     class LockStrategy {
         <<interface>>
-        +executeWithLocks(acc1, acc2, task)* void
+        +executeWithLocks(acc1, acc2, action)* void
+        +getStrategyName()* String
+    }
+
+    class StrategyChoice {
+        <<enumeration>>
+        SAFE
+        NAIVE
+        TIMED
     }
 
     class SafeLockStrategy {
-        +executeWithLocks(acc1, acc2, task) void
+        +executeWithLocks(acc1, acc2, action) void
+        +getStrategyName() String
     }
 
     class DeadlockProneLockStrategy {
-        -long sleepDelayMs
-        +executeWithLocks(acc1, acc2, task) void
+        -long artificialDelayMs
+        +executeWithLocks(acc1, acc2, action) void
+        +getStrategyName() String
     }
 
     class TimedLockStrategy {
         -long timeoutMs
-        +executeWithLocks(acc1, acc2, task) void
+        -int maxRetries
+        +executeWithLocks(acc1, acc2, action) void
+        +getStrategyName() String
     }
 
     LockStrategy <|.. SafeLockStrategy
     LockStrategy <|.. DeadlockProneLockStrategy
     LockStrategy <|.. TimedLockStrategy
+    LockStrategy ..> StrategyChoice
 
-    TransferEngine --> AccountLockManager
-    TransferEngine --> Transaction
-    TransactionPipelineQueue --> Transaction
-    FraudDetectionEngine --> Transaction
-    FraudDetectionEngine --> FraudResult
+    TransferEngine ..> AccountLockManager
+    SettlementService --> TransferEngine
+    SettlementService --> FraudDetectionEngine
+    SettlementService ..> SettlementOutcome
+    PipelineCoordinator --> TransactionPipelineQueue
+    PipelineCoordinator --> SettlementService
+    FraudDetectionEngine ..> FraudResult
 
     %% User Interface Layer
     class MainApp {
-        +start(Stage stage) void
+        -DashboardController controller
+        +start(stage) void
         +stop() void
     }
 
@@ -142,13 +234,12 @@ classDiagram
         -Map~String, Account~ accountMap
         -TransferEngine transferEngine
         -FraudDetectionEngine fraudEngine
-        -TransactionPipelineQueue pipelineQueue
-        -ExecutorService workerThreadPool
+        -SettlementService settlementService
+        -PipelineCoordinator pipelineCoordinator
+        -TelemetryViewController telemetryController
+        -ThreadPoolExecutor workerThreadPool
         +initialize(location, resources) void
-        +handleExecuteTransfer() void
-        +handleInjectTraffic() void
-        +handleTriggerDeadlock() void
-        +handleResetSystem() void
+        +shutdown() void
     }
 
     class JavaFXEventListener {
@@ -165,10 +256,11 @@ classDiagram
     }
 
     class TelemetryViewController {
-        -AtomicInteger totalProcessed
+        -AtomicInteger totalTransactionsProcessed
         -AtomicInteger flaggedCount
         -AtomicInteger quarantinedCount
         -ConcurrentLinkedQueue~Long~ timestampQueue
+        -List~String~ quarantineLogStream
         +calculateCurrentTps(windowMs) double
         +calculateCompositeRiskScore() double
         +getThreatLevelBadge() String
@@ -176,18 +268,21 @@ classDiagram
 
     JavaFXEventListener <|.. DashboardController
     JavaFXEventListener <|.. TelemetryViewController
-    DashboardController --> JavaFXEventBridge
-    DashboardController --> TransferEngine
-    DashboardController --> FraudDetectionEngine
+    JavaFXEventListener *-- JavaFXEventBridge
+    MainApp --> DashboardController
+    DashboardController ..|> JavaFXEventListener
+    PipelineCoordinator --> JavaFXEventListener
 
     %% Persistence Layer
     class LedgerFileManager {
+        <<utility>>
         +exportAccountsToCsv(accounts, targetFile)$ void
         +importAccountsFromCsv(sourceFile)$ List~Account~
         +exportTransactionsToJson(transactions, targetFile)$ void
     }
 
     class BinaryStateSerializer {
+        <<utility>>
         +saveSnapshot(snapshot, targetFile)$ void
         +loadSnapshot(sourceFile)$ EngineSnapshot
     }
@@ -200,16 +295,17 @@ classDiagram
         +Map~String, String~ systemMetadata
     }
 
-    BinaryStateSerializer --> EngineSnapshot
+    BinaryStateSerializer *-- EngineSnapshot
     EngineSnapshot --> Account
     EngineSnapshot --> Transaction
 ```
 
 ---
 
-## 2. Layer Relationships & Architectural Guarantees
+## 2. Architectural Guarantees & Refactored Principles
 
-1. **Domain Abstraction:** `Account` provides abstract contract for polymorphic subclasses (`SavingsAccount`, `CheckingAccount`, `CreditAccount`).
-2. **Concurrency Safety:** `AccountLockManager` orders locks deterministically by Account ID (`compareTo`), completely preventing Coffman's Circular Wait condition.
-3. **Thread Handoff:** Engine events pass from background threads to JavaFX UI thread via `JavaFXEventBridge.publish*()` using `Platform.runLater()`.
-4. **State Persistence:** `BinaryStateSerializer` saves/restores complete `EngineSnapshot` instances with custom `readObject` lock re-initialization.
+1. **Polymorphic Net Position Accounting:** `Account.getNetPosition()` returns signed liquidity contribution (Asset balance positive, Credit liability balance negative).
+2. **Deterministic N-Account Lock Ordering:** `AccountLockManager.executeWithLocks()` sorts accounts lexicographically by Account ID (`compareTo`), breaking Coffman's Circular Wait condition for arbitrary N accounts.
+3. **Pre-Execution Fraud Pipeline:** `SettlementService` evaluates `FraudDetectionEngine` against pre-transfer balance *before* balance mutation, blocking `QUARANTINED` transfers ($\ge 70$ risk score).
+4. **Active Bounded Backpressure:** `TransactionPipelineQueue` buffers up to 100 transactions using dual `Condition` variables (`notFull`, `notEmpty`) and 3 background consumer threads in `PipelineCoordinator`.
+5. **Recoverable Deadlock Demonstration:** Deadlock demo operates on isolated `DEMO-A`/`DEMO-B` accounts using `lockInterruptibly()`. An 800ms JMX watchdog detects deadlocks via `ThreadMXBean` and breaks them via `interrupt()`.
