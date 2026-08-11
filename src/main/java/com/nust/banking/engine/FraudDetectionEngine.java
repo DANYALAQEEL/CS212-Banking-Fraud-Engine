@@ -8,7 +8,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Real-time, thread-safe fraud detection engine enforcing security rules across streaming transactions.
@@ -38,18 +37,27 @@ public class FraudDetectionEngine {
     public static final int SUSPICIOUS_SOURCES_THRESHOLD = 3;
     public static final double RAPID_DRAIN_RATIO_THRESHOLD = 0.90;
 
-    // Thread-safe sliding window tracking maps
-    private final Map<String, List<Instant>> sourceVelocityMap = new ConcurrentHashMap<>();
-    private final Map<String, List<Transaction>> targetPatternMap = new ConcurrentHashMap<>();
+    // Thread-safe sliding window tracking maps using per-key monitor synchronization
+    private final Map<String, Deque<Instant>> sourceVelocityMap = new ConcurrentHashMap<>();
+    private final Map<String, Deque<Transaction>> targetPatternMap = new ConcurrentHashMap<>();
 
     /**
-     * Evaluates a transaction against all fraud rules and returns an immutable {@link FraudResult}.
+     * Evaluates a transaction against all fraud rules using the source account's current balance.
+     */
+    public FraudResult evaluateTransaction(Transaction transaction, Account sourceAccount) {
+        double balance = sourceAccount != null ? sourceAccount.getBalance() : 0.0;
+        return evaluateTransaction(transaction, sourceAccount, balance);
+    }
+
+    /**
+     * Evaluates a transaction against all fraud rules using an explicit pre-transfer balance.
      *
      * @param transaction transaction to evaluate
      * @param sourceAccount source account instance (may be null if unknown)
+     * @param preTransferBalance source account balance before the transfer is executed
      * @return immutable FraudResult token detailing risk score, status, and triggered rules
      */
-    public FraudResult evaluateTransaction(Transaction transaction, Account sourceAccount) {
+    public FraudResult evaluateTransaction(Transaction transaction, Account sourceAccount, double preTransferBalance) {
         if (transaction == null) {
             throw new NullPointerException("Cannot evaluate null transaction");
         }
@@ -67,40 +75,30 @@ public class FraudDetectionEngine {
 
         // --- Rule 2: High Velocity Rule ---
         final String fromId = transaction.fromAccountId();
-        List<Instant> timestamps = sourceVelocityMap.computeIfAbsent(fromId, k -> new CopyOnWriteArrayList<>());
-        timestamps.removeIf(t -> Duration.between(t, now).compareTo(VELOCITY_WINDOW) > 0);
-        timestamps.add(now);
+        int velocityCount = recordAndCountVelocity(fromId, now);
 
-        if (timestamps.size() > VELOCITY_COUNT_THRESHOLD) {
+        if (velocityCount > VELOCITY_COUNT_THRESHOLD) {
             riskScore += 35.0;
             triggeredRules.add(String.format("HIGH_VELOCITY: %d transfers detected from %s within 60s (+35)",
-                    timestamps.size(), fromId));
+                    velocityCount, fromId));
         }
 
         // --- Rule 3: Suspicious Target Pattern ---
-        final String toId = transaction.toAccountId();
-        List<Transaction> targetTxList = targetPatternMap.computeIfAbsent(toId, k -> new CopyOnWriteArrayList<>());
-        targetTxList.removeIf(tx -> Duration.between(tx.timestamp(), now).compareTo(VELOCITY_WINDOW) > 0);
-        targetTxList.add(transaction);
+        int distinctSources = recordAndCountDistinctTargets(transaction, now);
 
-        Set<String> distinctSources = new HashSet<>();
-        for (Transaction tx : targetTxList) {
-            distinctSources.add(tx.fromAccountId());
-        }
-
-        if (distinctSources.size() > SUSPICIOUS_SOURCES_THRESHOLD) {
+        if (distinctSources > SUSPICIOUS_SOURCES_THRESHOLD) {
             riskScore += 30.0;
             triggeredRules.add(String.format("SUSPICIOUS_TARGET: Account %s received funds from %d distinct sources within 60s (+30)",
-                    toId, distinctSources.size()));
+                    transaction.toAccountId(), distinctSources));
         }
 
         // --- Rule 4: Rapid Drain Rule ---
-        if (sourceAccount != null && sourceAccount.getBalance() > 0) {
-            double drainRatio = transaction.amount() / sourceAccount.getBalance();
+        if (preTransferBalance > 0.0) {
+            double drainRatio = transaction.amount() / preTransferBalance;
             if (drainRatio >= RAPID_DRAIN_RATIO_THRESHOLD) {
                 riskScore += 25.0;
                 triggeredRules.add(String.format("RAPID_DRAIN: Transfer of RS %.2f represents %.1f%% of available balance RS %.2f (+25)",
-                        transaction.amount(), drainRatio * 100.0, sourceAccount.getBalance()));
+                        transaction.amount(), drainRatio * 100.0, preTransferBalance));
             }
         }
 
@@ -122,6 +120,59 @@ public class FraudDetectionEngine {
                 : String.join("; ", triggeredRules);
 
         return new FraudResult(transaction.transactionId(), status, ruleSummary, finalScore, Instant.now());
+    }
+
+    private int recordAndCountVelocity(String sourceId, Instant now) {
+        Deque<Instant> window = sourceVelocityMap.computeIfAbsent(sourceId, k -> new ArrayDeque<>());
+        synchronized (window) {
+            while (!window.isEmpty() && Duration.between(window.peekFirst(), now).compareTo(VELOCITY_WINDOW) > 0) {
+                window.pollFirst();
+            }
+            window.addLast(now);
+            return window.size();
+        }
+    }
+
+    private int recordAndCountDistinctTargets(Transaction transaction, Instant now) {
+        String toId = transaction.toAccountId();
+        Deque<Transaction> window = targetPatternMap.computeIfAbsent(toId, k -> new ArrayDeque<>());
+        synchronized (window) {
+            while (!window.isEmpty() && Duration.between(window.peekFirst().timestamp(), now).compareTo(VELOCITY_WINDOW) > 0) {
+                window.pollFirst();
+            }
+            window.addLast(transaction);
+
+            Set<String> distinctSources = new HashSet<>();
+            for (Transaction tx : window) {
+                distinctSources.add(tx.fromAccountId());
+            }
+            return distinctSources.size();
+        }
+    }
+
+    /**
+     * Removes tracking entries whose sliding window has fully expired.
+     */
+    public void pruneExpiredWindows(Instant now) {
+        sourceVelocityMap.entrySet().removeIf(entry -> {
+            Deque<Instant> window = entry.getValue();
+            synchronized (window) {
+                while (!window.isEmpty() && Duration.between(window.peekFirst(), now).compareTo(VELOCITY_WINDOW) > 0) {
+                    window.pollFirst();
+                }
+                return window.isEmpty();
+            }
+        });
+
+        targetPatternMap.entrySet().removeIf(entry -> {
+            Deque<Transaction> window = entry.getValue();
+            synchronized (window) {
+                while (!window.isEmpty() && Duration.between(window.peekFirst().timestamp(), now).compareTo(VELOCITY_WINDOW) > 0) {
+                    window.pollFirst();
+                }
+                return window.isEmpty();
+            }
+        });
     }
 
     /**

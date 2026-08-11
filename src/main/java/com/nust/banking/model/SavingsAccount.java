@@ -5,6 +5,8 @@ package com.nust.banking.model;
  * Enforces a strict minimum balance requirement and daily withdrawal limits.
  */
 public class SavingsAccount extends Account {
+    private static final long serialVersionUID = 1L;
+
     private final double interestRate;      // Annual interest rate (e.g. 0.05 = 5%)
     private final double minimumBalance;   // Minimum balance threshold (e.g. RS 1000.0)
 
@@ -38,6 +40,14 @@ public class SavingsAccount extends Account {
     public void applyInterest() {
         double interest = getBalance() * interestRate;
         credit(interest);
+    }
+
+    /**
+     * Applies monthly interest (annual interest / 12) to the current balance.
+     */
+    public void applyMonthlyInterest() {
+        double monthlyInterest = getBalance() * (interestRate / 12.0);
+        credit(monthlyInterest);
     }
 
     @Override

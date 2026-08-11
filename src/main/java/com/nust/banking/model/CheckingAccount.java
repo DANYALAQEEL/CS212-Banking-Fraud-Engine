@@ -6,6 +6,8 @@ package com.nust.banking.model;
  * transactional processing fees.
  */
 public class CheckingAccount extends Account {
+    private static final long serialVersionUID = 1L;
+
     private final double overdraftLimit;   // Max negative balance allowed (e.g. 5000.0)
     private final double transactionFee;   // Fee per debit transaction (e.g. 25.0)
 
@@ -26,6 +28,11 @@ public class CheckingAccount extends Account {
     }
 
     public double getTransactionFee() {
+        return transactionFee;
+    }
+
+    @Override
+    public double feeFor(double amount) {
         return transactionFee;
     }
 

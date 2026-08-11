@@ -1,12 +1,12 @@
 package com.nust.banking.ui;
 
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
 
-import java.io.IOException;
 import java.net.URL;
 
 /**
@@ -19,11 +19,10 @@ import java.net.URL;
  */
 public class MainApp extends Application {
 
-    private static Stage primaryStage;
+    private DashboardController controller;
 
     @Override
     public void start(Stage stage) throws Exception {
-        primaryStage = stage;
         stage.setTitle("Automated Banking & Fraud Detection Engine — Live Concurrency Dashboard");
 
         Parent root;
@@ -32,8 +31,8 @@ public class MainApp extends Application {
         if (fxmlUrl != null) {
             FXMLLoader loader = new FXMLLoader(fxmlUrl);
             root = loader.load();
+            this.controller = loader.getController();
         } else {
-            // Fallback for headless or classpath test execution
             root = new javafx.scene.control.Label("Main Dashboard FXML Resource Initialized");
         }
 
@@ -45,24 +44,20 @@ public class MainApp extends Application {
         }
 
         stage.setScene(scene);
-        stage.setMinWidth(1024);
+        stage.setMinWidth(1180);
         stage.setMinHeight(700);
-
-        stage.setOnCloseRequest(event -> {
-            stop();
-        });
 
         stage.show();
     }
 
     @Override
-    public void stop() {
-        // Clean shutdown hook for background thread pools and telemetry listeners
-        System.out.println("[MainApp] Application shutting down. Terminating worker thread pools...");
-    }
-
-    public static Stage getPrimaryStage() {
-        return primaryStage;
+    public void stop() throws Exception {
+        if (controller != null) {
+            controller.shutdown();
+        }
+        super.stop();
+        Platform.exit();
+        System.exit(0);
     }
 
     public static void main(String[] args) {

@@ -1,7 +1,14 @@
 target/
 bin/
+out/
 *.class
-.DS_Store
+*.jar
 .idea/
 *.iml
+.vscode/
+.DS_Store
 *.log
+data/*.csv
+data/*.bin
+data/*.json
+final_submission.zip

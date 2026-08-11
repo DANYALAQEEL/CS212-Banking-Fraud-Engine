@@ -30,22 +30,24 @@ public class LedgerFileManager {
 
             for (Account acc : accounts) {
                 String type = acc.getClass().getSimpleName();
+                String owner = acc.getOwnerName();
+                String escapedOwner = owner.contains(",") ? "\"" + owner + "\"" : owner;
                 String line;
                 if (acc instanceof SavingsAccount sav) {
-                    line = String.format("%s,%s,%s,%.2f,%.4f,%.2f",
-                            sav.getId(), type, sav.getOwnerName(), sav.getBalance(),
+                    line = String.format(Locale.US, "%s,%s,%s,%.2f,%.4f,%.2f",
+                            sav.getId(), type, escapedOwner, sav.getBalance(),
                             sav.getInterestRate(), sav.getMinimumBalance());
                 } else if (acc instanceof CheckingAccount chk) {
-                    line = String.format("%s,%s,%s,%.2f,%.2f,%.2f",
-                            chk.getId(), type, chk.getOwnerName(), chk.getBalance(),
+                    line = String.format(Locale.US, "%s,%s,%s,%.2f,%.2f,%.2f",
+                            chk.getId(), type, escapedOwner, chk.getBalance(),
                             chk.getOverdraftLimit(), chk.getTransactionFee());
                 } else if (acc instanceof CreditAccount cred) {
-                    line = String.format("%s,%s,%s,%.2f,%.2f,%.4f",
-                            cred.getId(), type, cred.getOwnerName(), cred.getBalance(),
+                    line = String.format(Locale.US, "%s,%s,%s,%.2f,%.2f,%.4f",
+                            cred.getId(), type, escapedOwner, cred.getBalance(),
                             cred.getCreditLimit(), cred.getApr());
                 } else {
-                    line = String.format("%s,%s,%s,%.2f,0.0,0.0",
-                            acc.getId(), type, acc.getOwnerName(), acc.getBalance());
+                    line = String.format(Locale.US, "%s,%s,%s,%.2f,0.0,0.0",
+                            acc.getId(), type, escapedOwner, acc.getBalance());
                 }
                 writer.write(line);
                 writer.newLine();
@@ -68,12 +70,13 @@ public class LedgerFileManager {
                 line = line.trim();
                 if (line.isEmpty()) continue;
 
-                String[] parts = line.split(",");
+                // Split by comma respecting quoted fields
+                String[] parts = line.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
                 if (parts.length < 6) continue;
 
                 String id = parts[0].trim();
                 String type = parts[1].trim();
-                String owner = parts[2].trim();
+                String owner = parts[2].trim().replaceAll("^\"|\"$", "");
                 double balance = Double.parseDouble(parts[3].trim());
                 double p1 = Double.parseDouble(parts[4].trim());
                 double p2 = Double.parseDouble(parts[5].trim());
@@ -82,7 +85,12 @@ public class LedgerFileManager {
                 if ("SavingsAccount".equalsIgnoreCase(type)) {
                     acc = new SavingsAccount(id, owner, balance, p1, p2);
                 } else if ("CheckingAccount".equalsIgnoreCase(type)) {
-                    acc = new CheckingAccount(id, owner, balance, p1, p2);
+                    double initBal = Math.max(0.0, balance);
+                    CheckingAccount chk = new CheckingAccount(id, owner, initBal, p1, p2);
+                    if (balance < 0.0) {
+                        chk.setBalanceDirectly(balance);
+                    }
+                    acc = chk;
                 } else if ("CreditAccount".equalsIgnoreCase(type)) {
                     acc = new CreditAccount(id, owner, balance, p1, p2);
                 } else {
@@ -106,7 +114,8 @@ public class LedgerFileManager {
             writer.write("[\n");
             for (int i = 0; i < transactions.size(); i++) {
                 Transaction tx = transactions.get(i);
-                String jsonStr = String.format(
+                String safeDetails = escapeJson(tx.statusDetails());
+                String jsonStr = String.format(Locale.US,
                         "  {\n" +
                         "    \"transactionId\": \"%s\",\n" +
                         "    \"fromAccountId\": \"%s\",\n" +
@@ -118,12 +127,23 @@ public class LedgerFileManager {
                         "  }%s",
                         tx.transactionId(), tx.fromAccountId(), tx.toAccountId(),
                         tx.amount(), tx.timestamp().toString(), tx.status().name(),
-                        tx.statusDetails().replace("\"", "\\\""),
+                        safeDetails,
                         (i < transactions.size() - 1) ? ",\n" : "\n"
                 );
                 writer.write(jsonStr);
             }
             writer.write("]\n");
         }
+    }
+
+    private static String escapeJson(String input) {
+        if (input == null) return "";
+        return input.replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\b", "\\b")
+                    .replace("\f", "\\f")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t");
     }
 }

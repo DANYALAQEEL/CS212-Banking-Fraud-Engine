@@ -24,6 +24,18 @@ public class BinaryStateSerializer {
             Map<String, String> systemMetadata
     ) implements Serializable {
         private static final long serialVersionUID = 1L;
+
+        public EngineSnapshot(Collection<Account> accounts, List<Transaction> transactions) {
+            this(System.currentTimeMillis(), new ArrayList<>(accounts), new ArrayList<>(transactions), Map.of());
+        }
+
+        public List<Account> getAccounts() {
+            return accountSnapshots;
+        }
+
+        public List<Transaction> getTransactions() {
+            return transactionHistory;
+        }
     }
 
     /**

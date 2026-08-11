@@ -74,15 +74,31 @@ public abstract class Account implements Comparable<Account>, Serializable {
     }
 
     /**
+     * Signed contribution of this account to institutional liquidity.
+     * Asset accounts contribute positively; liability accounts contribute negatively.
+     */
+    public double getNetPosition() {
+        return balance;
+    }
+
+    /**
+     * Fee that would be charged for a debit of the given amount.
+     * Zero for account types without fees.
+     */
+    public double feeFor(double amount) {
+        return 0.0;
+    }
+
+    /**
      * Debits funds from the account. Abstract method implemented by subclasses
      * to enforce specific withdrawal and overdraft policies.
      */
     public abstract void debit(double amount);
 
     /**
-     * Protected setter for subclasses handling special balance adjustments.
+     * Setter for balance adjustments by subclass operations and persistence frameworks.
      */
-    protected void setBalanceDirectly(double newBalance) {
+    public void setBalanceDirectly(double newBalance) {
         this.balance = newBalance;
     }
 

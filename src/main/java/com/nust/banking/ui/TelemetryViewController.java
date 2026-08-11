@@ -5,6 +5,7 @@ import com.nust.banking.model.FraudResult;
 import com.nust.banking.model.Transaction;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,7 +25,7 @@ public class TelemetryViewController implements JavaFXEventListener {
     private final AtomicInteger quarantinedCount = new AtomicInteger(0);
 
     private final ConcurrentLinkedQueue<Long> timestampQueue = new ConcurrentLinkedQueue<>();
-    private final List<String> quarantineLogStream = new ArrayList<>();
+    private final List<String> quarantineLogStream = Collections.synchronizedList(new ArrayList<>());
 
     /**
      * Records a transaction event for telemetry calculation.
@@ -39,12 +40,21 @@ public class TelemetryViewController implements JavaFXEventListener {
         if (result != null) {
             if (result.status() == FraudResult.FraudStatus.FLAGGED_SUSPICIOUS) {
                 flaggedCount.incrementAndGet();
-                quarantineLogStream.add(0, String.format("[%tT] FLAGGED: Tx %s (Score: %.2f) - Rule: %s",
+                addQuarantineLog(String.format("[%tT] FLAGGED: Tx %s (Score: %.2f) - Rule: %s",
                         now, transaction.transactionId(), result.riskScore(), result.ruleTriggered()));
             } else if (result.status() == FraudResult.FraudStatus.QUARANTINED) {
                 quarantinedCount.incrementAndGet();
-                quarantineLogStream.add(0, String.format("[%tT] QUARANTINED: Tx %s (Score: %.2f) - Rule: %s",
+                addQuarantineLog(String.format("[%tT] QUARANTINED: Tx %s (Score: %.2f) - Rule: %s",
                         now, transaction.transactionId(), result.riskScore(), result.ruleTriggered()));
+            }
+        }
+    }
+
+    private void addQuarantineLog(String message) {
+        synchronized (quarantineLogStream) {
+            quarantineLogStream.add(0, message);
+            while (quarantineLogStream.size() > 200) {
+                quarantineLogStream.remove(quarantineLogStream.size() - 1);
             }
         }
     }
@@ -99,7 +109,9 @@ public class TelemetryViewController implements JavaFXEventListener {
     }
 
     public List<String> getQuarantineLogStream() {
-        return new ArrayList<>(quarantineLogStream);
+        synchronized (quarantineLogStream) {
+            return new ArrayList<>(quarantineLogStream);
+        }
     }
 
     @Override
@@ -112,7 +124,7 @@ public class TelemetryViewController implements JavaFXEventListener {
 
     @Override
     public void onDeadlockDetected(String details) {
-        quarantineLogStream.add(0, String.format("[%tT] ALERT: %s", System.currentTimeMillis(), details));
+        addQuarantineLog(String.format("[%tT] ALERT: %s", System.currentTimeMillis(), details));
     }
 
     public void resetTelemetry() {
@@ -120,6 +132,8 @@ public class TelemetryViewController implements JavaFXEventListener {
         flaggedCount.set(0);
         quarantinedCount.set(0);
         timestampQueue.clear();
-        quarantineLogStream.clear();
+        synchronized (quarantineLogStream) {
+            quarantineLogStream.clear();
+        }
     }
 }

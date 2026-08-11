@@ -6,6 +6,8 @@ package com.nust.banking.model;
  * the credit limit, while credits pay down the balance.
  */
 public class CreditAccount extends Account {
+    private static final long serialVersionUID = 1L;
+
     private final double creditLimit;      // Maximum credit capacity (e.g. 100000.0)
     private final double apr;              // Annual percentage rate for interest
 
@@ -34,6 +36,19 @@ public class CreditAccount extends Account {
 
     public double getAvailableCredit() {
         return Math.max(0.0, creditLimit - getBalance());
+    }
+
+    @Override
+    public void credit(double amount) {
+        if (amount <= 0.0) {
+            throw new IllegalArgumentException("Credit amount must be positive");
+        }
+        setBalanceDirectly(Math.max(0.0, getBalance() - amount));
+    }
+
+    @Override
+    public double getNetPosition() {
+        return -getBalance();
     }
 
     @Override

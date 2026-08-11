@@ -37,6 +37,36 @@ public interface LockStrategy {
      */
     String getStrategyName();
 
+    /**
+     * Enum mapping for UI ComboBox selection avoiding fragile string matching.
+     */
+    enum StrategyChoice {
+        SAFE("Deterministic Safe Strategy (Zero Deadlocks)", new SafeLockStrategy()),
+        NAIVE("Naive Strategy (Deadlock Prone)", new DeadlockProneLockStrategy()),
+        TIMED("Timed Backoff Strategy (Non-Blocking Recovery)", new TimedLockStrategy());
+
+        private final String label;
+        private final LockStrategy strategy;
+
+        StrategyChoice(String label, LockStrategy strategy) {
+            this.label = label;
+            this.strategy = strategy;
+        }
+
+        public String getLabel() {
+            return label;
+        }
+
+        public LockStrategy getStrategy() {
+            return strategy;
+        }
+
+        @Override
+        public String toString() {
+            return label;
+        }
+    }
+
     // =========================================================================
     // 1. Safe Lock Strategy (Deterministic Ordering)
     // =========================================================================
@@ -106,7 +136,7 @@ public interface LockStrategy {
 
         @Override
         public String getStrategyName() {
-            return "Naive Naive Strategy (Deadlock Prone)";
+            return "Naive Strategy (Deadlock Prone)";
         }
     }
 
@@ -115,14 +145,14 @@ public interface LockStrategy {
     // =========================================================================
 
     /**
-     * Non-blocking strategy that uses {@code tryLock()} with backoff to recover from lock contention.
+     * Non-blocking strategy that uses {@code tryLock()} with exponential backoff to recover from lock contention.
      */
     class TimedLockStrategy implements LockStrategy {
         private final long timeoutMs;
         private final int maxRetries;
 
         public TimedLockStrategy() {
-            this(100, 3);
+            this(100, 5);
         }
 
         public TimedLockStrategy(long timeoutMs, int maxRetries) {
@@ -166,9 +196,10 @@ public interface LockStrategy {
                     }
                 }
 
-                // Random backoff before retrying
+                // Exponential backoff with jitter before retrying
+                long backoff = (10L << attempt) + (long) (Math.random() * 20);
                 try {
-                    Thread.sleep(10 + (long) (Math.random() * 20));
+                    Thread.sleep(backoff);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     throw new RuntimeException("Thread interrupted during backoff", e);
