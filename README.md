@@ -1,5 +1,9 @@
 # Automated Banking & Fraud Detection Engine (v2.0 Final Release)
 
+[![CI](https://github.com/DANYALAQEEL/CS212-Banking-Fraud-Engine/actions/workflows/ci.yml/badge.svg)](https://github.com/DANYALAQEEL/CS212-Banking-Fraud-Engine/actions)
+![Tests](https://img.shields.io/badge/Tests-55%20Passed-10B981?style=flat-square&logo=junit5)
+[![Architecture](https://img.shields.io/badge/Design-DESIGN.md-blue?style=flat-square)](./DESIGN.md)
+
 **Course:** CS-212 Object-Oriented Programming (Summer 2026, NUST SEECS)  
 **Project Domain:** Automated High-Throughput Banking & Real-Time Fraud Detection Engine  
 **GitHub Repository:** [https://github.com/DANYALAQEEL/CS212-Banking-Fraud-Engine](https://github.com/DANYALAQEEL/CS212-Banking-Fraud-Engine)  
@@ -80,6 +84,8 @@ mvn javafx:run
 
 To verify system correctness, test concurrent transfers, fraud rules, and ledger persistence:
 
+The suite contains **55 JUnit 5 tests** across 9 test classes (lock strategies, transfer engine, settlement, fraud rules, pipeline queue, domain models, persistence, and UI controllers). GitHub Actions ([`.github/workflows/ci.yml`](./.github/workflows/ci.yml)) runs it on JDK 21 for every push and pull request to `main`.
+
 #### **On Windows:**
 Double-click [`RUN_TESTS.bat`](file:///C:/Users/Administrator/.gemini/antigravity/scratch/CS212-Banking-Fraud-Engine/RUN_TESTS.bat) or run in Command Prompt:
 ```cmd
@@ -135,6 +141,7 @@ Once the application launches, you will see a dark-themed fintech dashboard with
 ---
 
 ## 📑 Project Artifacts & Reports
+* **[`DESIGN.md`](./DESIGN.md):** Architecture deep-dive: lock-ordering invariant and Coffman circular-wait proof, fraud pipeline, lock-strategy benchmark comparison, and the `ObjectInputFilter` snapshot security allowlist.
 * **[`FINAL_REPORT.md`](file:///C:/Users/Administrator/.gemini/antigravity/scratch/CS212-Banking-Fraud-Engine/FINAL_REPORT.md):** Complete single-pass audit remediation report, mathematical proofs, benchmark results, and verification matrix.
 * **[`UML_v2.pdf`](file:///C:/Users/Administrator/.gemini/antigravity/scratch/CS212-Banking-Fraud-Engine/UML_v2.pdf):** Rendered vector class diagram matching post-remediation release.
 * **[`docs/UML_v2.md`](file:///C:/Users/Administrator/.gemini/antigravity/scratch/CS212-Banking-Fraud-Engine/docs/UML_v2.md):** Evolved Mermaid class diagram source.

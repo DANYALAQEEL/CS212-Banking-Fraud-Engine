@@ -85,6 +85,7 @@ public class DashboardController implements Initializable, JavaFXEventListener {
     private final Map<String, Account> accountMap = new ConcurrentHashMap<>();
     private final ObservableList<Account> observableAccounts = FXCollections.observableArrayList();
     private final ObservableList<Transaction> observableTransactions = FXCollections.observableArrayList();
+    private final Map<String, Double> riskScoreMap = new ConcurrentHashMap<>();
 
     private final TransferEngine transferEngine = new TransferEngine();
     private final FraudDetectionEngine fraudEngine = new FraudDetectionEngine();
@@ -184,7 +185,9 @@ public class DashboardController implements Initializable, JavaFXEventListener {
         if (colTxTo != null) colTxTo.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().toAccountId()));
         if (colTxAmount != null) colTxAmount.setCellValueFactory(data -> new SimpleStringProperty(String.format(Locale.US, "RS %.2f", data.getValue().amount())));
         if (colTxStatus != null) colTxStatus.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().status().name()));
-        if (colTxRisk != null) colTxRisk.setCellValueFactory(data -> new SimpleStringProperty(String.format(Locale.US, "%.0f", 0.0)));
+        if (colTxRisk != null) colTxRisk.setCellValueFactory(data ->
+                new SimpleStringProperty(String.format(Locale.US, "%.0f",
+                        riskScoreMap.getOrDefault(data.getValue().transactionId(), 0.0))));
         if (colTxDetails != null) colTxDetails.setCellValueFactory(data -> new SimpleStringProperty(data.getValue().statusDetails()));
     }
 
@@ -390,6 +393,7 @@ public class DashboardController implements Initializable, JavaFXEventListener {
     private void handleResetSystem() {
         seedInitialAccounts();
         observableTransactions.clear();
+        riskScoreMap.clear();
         fraudEngine.resetWindowHistory();
         telemetryController.resetTelemetry();
         if (lblEngineStatus != null) {
@@ -564,6 +568,9 @@ public class DashboardController implements Initializable, JavaFXEventListener {
     public void onTransactionProcessed(Transaction transaction, FraudResult fraudResult) {
         if (transaction != null) {
             Runnable task = () -> {
+                if (fraudResult != null) {
+                    riskScoreMap.put(transaction.transactionId(), fraudResult.riskScore());
+                }
                 observableTransactions.add(0, transaction);
                 refreshLedgerView();
                 if (fraudResult != null && fraudResult.status() != FraudResult.FraudStatus.CLEARED) {

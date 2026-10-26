@@ -1,5 +1,6 @@
 package com.nust.banking.engine;
 
+import com.nust.banking.model.Account;
 import com.nust.banking.model.CheckingAccount;
 import com.nust.banking.model.SavingsAccount;
 import org.junit.jupiter.api.BeforeEach;
@@ -39,8 +40,8 @@ class LockStrategyTest {
             final boolean direction = (i % 2 == 0);
             executor.submit(() -> {
                 try {
-                    SavingsAccount from = direction ? accA : accA;
-                    CheckingAccount to  = accB;
+                    Account from = direction ? accA : accB;
+                    Account to   = direction ? accB : accA;
                     safeStrategy.executeWithLocks(from, to, () -> {
                         from.debit(10.0);
                         to.credit(10.0);
@@ -137,8 +138,8 @@ class LockStrategyTest {
             final boolean direction = (i % 2 == 0);
             executor.submit(() -> {
                 try {
-                    SavingsAccount from = accA;
-                    CheckingAccount to   = accB;
+                    Account from = direction ? accA : accB;
+                    Account to   = direction ? accB : accA;
                     timedStrategy.executeWithLocks(from, to, () -> {
                         from.debit(5.0);
                         to.credit(5.0);

@@ -54,6 +54,10 @@ public class BinaryStateSerializer {
 
     /**
      * Restores an engine state snapshot from a binary snapshot file.
+     *
+     * <p>Deserialization is guarded by an {@link ObjectInputFilter} allowlist so that a tampered
+     * snapshot cannot instantiate arbitrary gadget classes. {@code java.time.Instant} and its serialization
+     * proxy {@code java.time.Ser} are allowed because {@link Transaction#timestamp()} is an {@code Instant}.
      */
     public static EngineSnapshot loadSnapshot(File sourceFile) throws IOException, ClassNotFoundException {
         if (sourceFile == null || !sourceFile.exists()) {
@@ -61,6 +65,16 @@ public class BinaryStateSerializer {
         }
 
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(sourceFile))) {
+            ObjectInputFilter filter = ObjectInputFilter.Config.createFilter(
+                    "com.nust.banking.persistence.BinaryStateSerializer$EngineSnapshot;" +
+                    "com.nust.banking.model.*;" +
+                    "java.util.*;" +
+                    "java.lang.*;" +
+                    "java.time.Instant;" +
+                    "java.time.Ser;" +
+                    "!*"
+            );
+            ois.setObjectInputFilter(filter);
             return (EngineSnapshot) ois.readObject();
         }
     }
